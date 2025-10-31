@@ -8,12 +8,10 @@ You can also include images in this folder and reference them in the markdown. E
 -->
 
 ## How it works
-
-Explain how your project works
+Right now just a throwaway design that needs to be replaced
 
 ## How to test
-
-Explain how to use your project
+Rotates the state of a pin through a 7 segment
 
 ## External hardware
 
