@@ -87,7 +87,7 @@ module tt_um_bmellor_lightsout (
     integer i;
 
     // Sample buttons on opposite edge of clock to ensure lines are stable
-    always @(posedge CLK) begin
+    always @(negedge CLK) begin
         if (!RESET_N) begin
             for (i=0; i<9; i=i+1) begin
                 btn_shift[i] <= 16'd0;
@@ -174,7 +174,5 @@ always @(posedge CLK) begin
         end
     end
 end
-
-endmodule
 
 endmodule
