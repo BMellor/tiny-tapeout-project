@@ -24,6 +24,9 @@ async def test_project(dut):
 
     dut._log.info("Push first button and test LED matrix startup state")
 
+    # Determine that DONE light is lit while all other LED's are out
+    assert dut.uo_out.value[6] == 1
+
     # Simulate first button press for 16 debounce samples. It's a pain due to
     # needing to follow column scan (or multiple buttons appear to be pushed)
     for _ in range(16):
@@ -31,6 +34,9 @@ async def test_project(dut):
         await ClockCycles(dut.clk, 1)
         dut.ui_in.value = 0
         await ClockCycles(dut.clk, 2)
+
+    # Determine that DONE light is out while other LED's are lit
+    assert dut.uo_out.value[6] == 0
 
     # Since we know the LFSR seed and can count clock cycles
     # we can determine the starting LED state

@@ -36,6 +36,9 @@ module tt_um_bmellor_lightsout (
     wire COL1;
     wire COL2;
 
+    // Win/restart LED
+    wire DONE;
+
     // ---- Assign to Tiny Tapeout I/O pins ----
     assign uo_out[0] = LED_ROW0;
     assign uo_out[1] = LED_ROW1;
@@ -45,8 +48,10 @@ module tt_um_bmellor_lightsout (
     assign uo_out[4] = COL1;
     assign uo_out[5] = COL2;
 
-    // Any unused outputs set to 0
-    assign uo_out[7:6] = 2'b00;
+    assign uo_out[6] = DONE;
+
+    // Set unused output to 0
+    assign uo_out[7] = 1'b0;
 
     // All bidirectional IOs unused here
     assign uio_out = 8'b0;
@@ -78,6 +83,8 @@ module tt_um_bmellor_lightsout (
                       (active_col == 1) ? leds[4] : leds[5]);
     assign LED_ROW2 = !((active_col == 0) ? leds[6] :
                       (active_col == 1) ? leds[7] : leds[8]);
+
+    assign DONE = !(|leds);
 
     // --- Button debouncing ---
     // Shift registers for each button
