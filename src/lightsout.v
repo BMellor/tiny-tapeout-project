@@ -58,40 +58,25 @@ module tt_um_bmellor_lightsout (
     reg [8:0] leds;
 
     // --- Multiplexing counter ---
-    reg [3:0] mux_state;
+    reg [2:0] active_col;
     always @(posedge CLK) begin
         if (!RESET_N)
-            mux_state <= 4'd0;
-        else if (mux_state == 4'd8)
-            mux_state <= 4'd0;
+            active_col <= 2'd0;
+        else if (active_col == 2'd3)
+            active_col <= 2'd0;
         else
-            mux_state <= mux_state + 1'b1;
+            active_col <= active_col + 1'b1;
     end
-
-    // Decode current row/col
-    wire [1:0] row = mux_state / 3;
-    wire [1:0] col = mux_state % 3;
 
     // --- LED drive ---
     always @(*) begin
-        {COL2, COL1, COL0} = 3'b000;
-        {LED_ROW2, LED_ROW1, LED_ROW0} = 3'b111;
+        COL0 <= (active_col == 2'd0);
+        COL1 <= (active_col == 2'd1);
+        COL2 <= (active_col == 2'd2);
+        LED_ROW0 <= leds[active_col + 0];
+        LED_ROW1 <= leds[active_col + 3];
+        LED_ROW2 <= leds[active_col + 6];
 
-        // Activate current column
-        case (col)
-            2'd0: COL0 = 1'b1;
-            2'd1: COL1 = 1'b1;
-            2'd2: COL2 = 1'b1;
-        endcase
-
-        // Drive LED if bit set
-        if (leds[mux_state]) begin
-            case (row)
-                2'd0: LED_ROW0 = 1'b0;
-                2'd1: LED_ROW1 = 1'b0;
-                2'd2: LED_ROW2 = 1'b0;
-            endcase
-        end
     end
 
     // --- Button debouncing ---
@@ -101,7 +86,8 @@ module tt_um_bmellor_lightsout (
 
     integer i;
 
-    always @(posedge CLK) begin
+    // Sample buttons on opposite edge of clock to ensure lines are stable
+    always @(negedge CLK) begin
         if (!RESET_N) begin
             for (i=0; i<9; i=i+1) begin
                 btn_shift[i] <= 16'd0;
@@ -112,7 +98,7 @@ module tt_um_bmellor_lightsout (
           // Column = 0 - BTN_ROW0/1/2 mapped to idx 0,3,6
           // Column = 1 - idx 1,4,7
           // Column = 2 - idx 2,5,8
-          case (col)
+          case (active_col)
               2'd0: begin
                   btn_shift[0] <= {btn_shift[0][14:0], BTN_ROW0};
                   btn_shift[3] <= {btn_shift[3][14:0], BTN_ROW1};
@@ -162,33 +148,37 @@ module tt_um_bmellor_lightsout (
 
   // Implement the lights-out game logic
   always @(posedge CLK) begin
-      // LFSR clocks in background, intentionally don't initialize
-      // x^16 + x^14 + x^13 + x^11
-      lfsr <= {lfsr[14:0], lfsr[15] ^ lfsr[13] ^ lfsr[12] ^ lfsr[10]};
-
-      // Determine next LED state
-      leds_next = leds;
-
-      // Load random state if any button pressed when LEDs are off or on RESET
-      if (!RESET_N || ((|btn_debounced) && leds == 0)) begin
-          leds_next = lfsr[8:0];  // load 9 LSBs of LFSR
+      if(!RESET_N) begin
+        leds = 8'h00;
+        lfsr = 16'hBEEF;
       end else begin
-        // Toggle LED's based on button presses
-        for (i=0; i<9; i=i+1) begin
-            if (btn_debounced[i]) begin
-              case (i)
-                0: leds_next = leds_next ^ TOGGLE_MASK0;
-                1: leds_next = leds_next ^ TOGGLE_MASK1;
-                2: leds_next = leds_next ^ TOGGLE_MASK2;
-                3: leds_next = leds_next ^ TOGGLE_MASK3;
-                4: leds_next = leds_next ^ TOGGLE_MASK4;
-                5: leds_next = leds_next ^ TOGGLE_MASK5;
-                6: leds_next = leds_next ^ TOGGLE_MASK6;
-                7: leds_next = leds_next ^ TOGGLE_MASK7;
-                8: leds_next = leds_next ^ TOGGLE_MASK8;
-              endcase
+        // LFSR clocks in background: x^16 + x^14 + x^13 + x^11
+        lfsr <= {lfsr[14:0], lfsr[15] ^ lfsr[13] ^ lfsr[12] ^ lfsr[10] ^ 1'b1};
+
+        // Determine next LED state
+        leds_next = leds;
+
+        // Load random state if any button pressed when LEDs are off or on RESET
+        if ((|btn_debounced) && leds == 0) begin
+            leds_next = lfsr[8:0];  // load 9 LSBs of LFSR
+        end else begin
+            // Toggle LED's based on button presses
+            for (i=0; i<9; i=i+1) begin
+                if (btn_debounced[i]) begin
+                case (i)
+                    0: leds_next = leds_next ^ TOGGLE_MASK0;
+                    1: leds_next = leds_next ^ TOGGLE_MASK1;
+                    2: leds_next = leds_next ^ TOGGLE_MASK2;
+                    3: leds_next = leds_next ^ TOGGLE_MASK3;
+                    4: leds_next = leds_next ^ TOGGLE_MASK4;
+                    5: leds_next = leds_next ^ TOGGLE_MASK5;
+                    6: leds_next = leds_next ^ TOGGLE_MASK6;
+                    7: leds_next = leds_next ^ TOGGLE_MASK7;
+                    8: leds_next = leds_next ^ TOGGLE_MASK8;
+                endcase
+                end
             end
-        end
+         end
       end
 
       leds <= leds_next;
